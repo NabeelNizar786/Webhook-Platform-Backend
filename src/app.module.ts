@@ -3,7 +3,6 @@ import { AuthModule } from './auth/auth.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { EventsModule } from './events/events.module';
 import { RetryModule } from './retry/retry.module';
-import { CommonModule } from './common/common.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -25,7 +24,6 @@ import { ScheduleModule } from '@nestjs/schedule';
     WebhooksModule,
     EventsModule,
     RetryModule,
-    CommonModule,
   ],
   controllers: [],
   providers: [],

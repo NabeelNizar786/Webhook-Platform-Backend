@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Event, EventStatus } from './events.schema';
 import { Webhook } from '../webhooks/webhooks.schema';
 import axios from 'axios';
+import { RabbitMQService } from 'src/rabbitmq/rabbitmq.service';
 
 @Injectable()
 export class EventsService {
@@ -25,6 +26,19 @@ export class EventsService {
     });
 
     this.deliverEvent(event, webhook);
+// **** if you wanna swithc to rabbit mq, you can uncomment below ****
+//**** when switching to rabbit mq, you should also comment out this.deliverEvent(event, webhook); ****
+
+    // const channel = await RabbitMQService.getChannel();
+    // channel.sendToQueue(
+    //   'webhook_events',
+    //   Buffer.from(
+    //     JSON.stringify({
+    //       eventId: event._id.toString(),
+    //     }),
+    //   ),
+    //   { persistent: true },
+    // );
     return event;
   }
 
@@ -40,4 +54,8 @@ export class EventsService {
       await event.save();
     }
   }
+
+  // async fetchEvents(webhookId: string) {
+  //   return await this.eventModel.find({ webhookId }).exec();
+  // }
 }

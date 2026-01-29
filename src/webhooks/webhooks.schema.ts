@@ -20,11 +20,11 @@ export class Webhook extends Document {
   @Prop({ required: true })
   callbackUrl: string;
 
-  @Prop({ type: [String], default: [] })
-  events: string[];
-
   @Prop({ enum: WebhookStatus, default: WebhookStatus.ACTIVE })
   status: WebhookStatus;
+
+  @Prop({ required: true })
+  secret: string;
 }
 
 export const WebhookSchema = SchemaFactory.createForClass(Webhook);
