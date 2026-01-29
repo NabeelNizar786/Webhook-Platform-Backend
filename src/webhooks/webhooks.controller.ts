@@ -24,6 +24,7 @@ export class WebhooksController {
 
   @Get()
   findAll(@Req() req) {
+    console.log(req.user.userId)
     return this.webhooksService.findAll(req.user.userId);
   }
 
