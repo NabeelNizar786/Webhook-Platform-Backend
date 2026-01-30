@@ -21,78 +21,234 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+#  Scalable Webhook Management Platform
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+A robust, production-ready NestJS platform designed to handle webhook subscriptions, asynchronous event processing, and secure delivery with automated retries.
 
-## Project setup
+---
 
+##  Table of Contents
+* [Overview](#-overview)
+* [Tech Stack](#-tech-stack)
+* [Architecture](#-architecture)
+* [Project Structure](#-project-structure)
+* [Getting Started](#-getting-started)
+* [API Documentation](#-api-documentation)
+* [Signature Verification](#-signature-verification)
+* [Retry Strategy](#-retry-strategy)
+
+---
+
+##  Overview
+This platform acts as a secure bridge between external services and customer servers. It ensures that incoming events are verified, logged, and delivered reliably without blocking the main API thread.
+
+**Key capabilities:**
+* **Asynchronous Processing:** Offloads delivery tasks to background workers.
+* **Security:** Implements HMAC SHA256 signature verification.
+* **Fault Tolerance:** Robust retry logic via RabbitMQ.
+* **Scalability:** Decoupled architecture allowing independent scaling of the API and Workers.
+
+---
+
+##  Tech Stack
+* **Framework:** NestJS (Node.js)
+* **Database:** MongoDB (Mongoose)
+* **Message Broker:** RabbitMQ
+* **Security:** JWT Authentication & HMAC SHA256
+* **DevOps:** Docker (for RabbitMQ)
+* **Communication:** Axios
+
+---
+
+##  Architecture
+The system follows an event-driven flow to prevent slow callback URLs from impacting API performance.
+
+
+
+1.  **Ingestion:** External Service posts an event to the Receiver API.
+2.  **Persistence:** The event is stored in MongoDB with a `PENDING` status.
+3.  **Queuing:** The API produces a message to RabbitMQ.
+4.  **Delivery:** The Webhook Worker consumes the message and sends it to the customer’s `callbackUrl`.
+
+---
+
+##  Project Structure
 ```bash
-$ npm install
-```
+src/
+├── auth/           # JWT authentication (login/signup)
+├── users/          # User management
+├── webhooks/       # Subscriptions & callback management
+├── events/         # Inbound event logging
+├── rabbitmq/       # Message producer logic
+├── worker/         # Background consumer & delivery logic
+├── common/         # Auth guards & shared utilities
+├── app.module.ts   # Main application module
+└── main.ts         # Entry point (rawBody enabled for signatures)
 
-## Compile and run the project
+- Significance
 
-```bash
-# development
-$ npm run start
+webhooks → manages user subscriptions
 
-# watch mode
-$ npm run start:dev
+events → stores incoming webhook events
 
-# production mode
-$ npm run start:prod
-```
+queue / worker → async processing
 
-## Run tests
+auth → isolates security concerns
 
-```bash
-# unit tests
-$ npm run test
+common → shared reusable logic
 
-# e2e tests
-$ npm run test:e2e
+🔹 Environment Setup
 
-# test coverage
-$ npm run test:cov
-```
+1. Clone the repository
 
-## Deployment
+git clone <backend-repo-url>
+cd webhook-platform-backend
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+2. Install dependencies
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+npm install
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+3. Environment variables
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Create a .env file:
 
-## Resources
+MONGO_URI=mongodb://localhost:27017/webhooks
+JWT_SECRET=supersecret
+RABBITMQ_URL=amqp://localhost:5672
+WEBHOOK_SIGNING_SECRET=your_secret_key
 
-Check out a few resources that may come in handy when working with NestJS:
+🔹 Running RabbitMQ (Required)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Using Docker (recommended)
 
-## Support
+docker run -d \
+  --hostname rabbitmq \
+  --name rabbitmq \
+  -p 5672:5672 \
+  -p 15672:15672 \
+  rabbitmq:3-management
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+🔹 Running the Backend
+API Server
 
-## Stay in touch
+npm start
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Worker (in a separate terminal)
+npx ts-node src/worker/main.ts
 
-## License
+⚠️ The worker is responsible for delivering webhook events and handling retries.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+🔹 Authentication APIs
+
+Signup
+
+POST /auth/signup
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+Login
+
+POST /auth/login
+
+Returns JWT token:
+
+{
+  "accessToken": "jwt-token"
+}
+
+Use this token in:
+
+Authorization: Bearer <token>
+
+🔹 Webhook APIs
+Create Webhook
+
+POST /webhooks
+
+{
+  "source": "order-service",
+  "sourceUrl": "https://example.com",
+  "callbackUrl": "https://client-server.com/webhook",
+}
+
+- List Webhooks
+
+GET /webhooks
+
+- Cancel Webhook
+
+DELETE /webhooks/:id
+
+🔹 Receiving Webhook Events (External Services)
+
+POST /webhooks/:webhookId
+
+Headers:
+
+x-webhook-signature: <HMAC_SHA256_SIGNATURE>
+
+
+Body:
+
+{
+  "message": an incoming event
+}
+
+🔹 Webhook Signature Verification
+
+Each webhook has a shared secret
+
+Signature is generated using:
+
+HMAC_SHA256(secret, rawBody)
+
+
+Prevents payload tampering
+
+Uses raw body verification
+
+🔹 Retry Strategy
+
+Events start with status: PENDING
+
+Worker attempts delivery
+
+On failure:
+
+Increments retryCount
+
+Marks FAILED
+
+Requeues message (max retries configurable)
+
+On success:
+
+Marks SUCCESS
+
+🔹 Design Decisions
+
+- Why RabbitMQ?
+
+Reliable message delivery
+
+Supports retries & backpressure
+
+Prevents API blocking
+
+- Why MongoDB?
+
+Flexible schema for webhook payloads
+
+Fast writes for event logging
+
+- Why NestJS?
+
+Modular architecture
+
+Dependency injection
+
+Production-ready structure
+
