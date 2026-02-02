@@ -32,4 +32,9 @@ export class WebhooksController {
   cancel(@Req() req, @Param('id') id: string) {
     return this.webhooksService.cancel(req.user.userId, id);
   }
+
+  @Post('generate-signature/:secret')
+  generateSignature(@Param('secret') secret: string, @Body() body: any) {
+    return this.webhooksService.generateSignature(secret, body);
+  }
 }

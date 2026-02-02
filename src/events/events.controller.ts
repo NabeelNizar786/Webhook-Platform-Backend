@@ -43,8 +43,8 @@ export class EventsController {
     return { status: 'received' };
   }
 
-  // @Get(':webhookId')
-  // async fetchEvent(@Param('webhookId') webhookId: string) {
-  //   return this.eventsService.fetchEvents(webhookId);
-  // }
+  @Get(':webhookId')
+  async fetchEvent(@Param('webhookId') webhookId: string) {
+    return this.eventsService.fetchEvents(webhookId);
+  }
 }

@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Webhook, WebhookStatus } from './webhooks.schema';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
 
 @Injectable()
 export class WebhooksService {
@@ -37,5 +37,15 @@ export class WebhooksService {
 
     webhook.status = WebhookStatus.CANCELLED;
     return webhook.save();
+  }
+
+  generateSignature(secret: string, payload: any) {
+    const bodyString = JSON.stringify(payload);
+
+    const signature = createHmac('sha256', secret)
+      .update(bodyString)
+      .digest('hex');
+
+    return { 'x-webhook-signature': signature };
   }
 }

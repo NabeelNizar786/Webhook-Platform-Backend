@@ -25,26 +25,26 @@ export class EventsService {
       payload,
     });
 
-    this.deliverEvent(event, webhook);
+    // this.deliverEvent(event, webhook);
 // **** if you wanna swithc to rabbit mq, you can uncomment below ****
 //**** when switching to rabbit mq, you should also comment out this.deliverEvent(event, webhook); ****
 
-    // const channel = await RabbitMQService.getChannel();
-    // channel.sendToQueue(
-    //   'webhook_events',
-    //   Buffer.from(
-    //     JSON.stringify({
-    //       eventId: event._id.toString(),
-    //     }),
-    //   ),
-    //   { persistent: true },
-    // );
+    const channel = await RabbitMQService.getChannel();
+    channel.sendToQueue(
+      'webhook_events',
+      Buffer.from(
+        JSON.stringify({
+          eventId: event._id.toString(),
+        }),
+      ),
+      { persistent: true },
+    );
     return event;
   }
 
   async deliverEvent(event: Event, webhook: Webhook) {
     try {
-      await axios.post(webhook.callbackUrl, event.payload);
+      let res = await axios.post(webhook.callbackUrl, event.payload);
       event.status = EventStatus.SUCCESS;
       await event.save();
     } catch (err) {
@@ -55,7 +55,7 @@ export class EventsService {
     }
   }
 
-  // async fetchEvents(webhookId: string) {
-  //   return await this.eventModel.find({ webhookId }).exec();
-  // }
+  async fetchEvents(webhookId: string) {
+    return await this.eventModel.find({ webhookId }).exec();
+  }
 }

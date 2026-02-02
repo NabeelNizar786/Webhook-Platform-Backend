@@ -15,7 +15,7 @@ export class RetryProcessor {
     @InjectModel(Webhook.name) private webhookModel: Model<Webhook>,
   ) {}
 
-  @Cron('*/30 * * * * *') // every 30 seconds
+  // @Cron('*/30 * * * * *') // every 30 seconds
   async retryFailedEvents() {
     console.log('Retrying failed events...');
     const failedEvents = await this.eventModel.find({
