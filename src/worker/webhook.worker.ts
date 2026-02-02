@@ -46,11 +46,12 @@ export class WebhookWorker implements OnModuleInit {
         const webhook = await this.webhookModel.findById(event.webhookId);
         if (!webhook) throw new Error('Webhook configuration missing');
 
+        this.logger.log(`Attempting to hit: ${webhook.callbackUrl}`);
         let result = await axios.post(webhook.callbackUrl, event.payload);
         console.log('Result from webhook delivery:', result);
 
         event.status = EventStatus.SUCCESS;
-        event.lastError = "null";
+        event.lastError = 'null';
         await event.save();
         channel.ack(msg);
       } catch (err) {
@@ -63,9 +64,8 @@ export class WebhookWorker implements OnModuleInit {
           this.logger.error(`Max retries reached for event ${eventId}. Stop.`);
           event.status = EventStatus.FAILED;
           await event.save();
-          channel.ack(msg); 
+          channel.ack(msg);
         } else {
-
           this.logger.log(
             `Retrying event ${eventId} (Attempt ${event.retryCount}). Waiting 30s...`,
           );
