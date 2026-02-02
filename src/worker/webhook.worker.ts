@@ -10,6 +10,8 @@ import { Webhook } from '../webhooks/webhooks.schema';
 export class WebhookWorker implements OnModuleInit {
   private readonly logger = new Logger(WebhookWorker.name);
   private maxRetries = 5;
+  private readonly MAIN_QUEUE = 'webhook_events';
+  private readonly RETRY_QUEUE = 'events_retry_30s';
 
   constructor(
     @InjectModel(Event.name) private eventModel: Model<Event>,
@@ -24,61 +26,60 @@ export class WebhookWorker implements OnModuleInit {
     const connection = await amqp.connect('amqp://localhost:5672');
     const channel = await connection.createChannel();
 
-    await channel.assertQueue('webhook_events', { durable: true });
+    await channel.assertQueue(this.MAIN_QUEUE, { durable: true });
 
     this.logger.log('Webhook worker started...');
 
-    channel.consume('webhook_events', async (msg) => {
+    channel.consume(this.MAIN_QUEUE, async (msg) => {
       if (!msg) return;
 
       const { eventId } = JSON.parse(msg.content.toString());
-
       const event = await this.eventModel.findById(eventId);
+
       if (!event) {
+        this.logger.warn(`Event ${eventId} not found in DB, discarding.`);
         channel.ack(msg);
         return;
       }
 
       try {
         const webhook = await this.webhookModel.findById(event.webhookId);
-        if (!webhook) throw new Error('Webhook not found');
+        if (!webhook) throw new Error('Webhook configuration missing');
 
-        await axios.post(webhook.callbackUrl, event.payload);
+        let result = await axios.post(webhook.callbackUrl, event.payload);
+        console.log('Result from webhook delivery:', result);
 
         event.status = EventStatus.SUCCESS;
+        event.lastError = "null";
         await event.save();
-
         channel.ack(msg);
       } catch (err) {
+        this.logger.error(`Failed to process event ${eventId}: ${err.message}`);
+
         event.retryCount += 1;
-        event.status = EventStatus.FAILED;
         event.lastError = err.message;
-        await event.save();
 
         if (event.retryCount >= this.maxRetries) {
+          this.logger.error(`Max retries reached for event ${eventId}. Stop.`);
           event.status = EventStatus.FAILED;
           await event.save();
-          channel.ack(msg);
+          channel.ack(msg); 
         } else {
-          event.retryCount += 1;
+
+          this.logger.log(
+            `Retrying event ${eventId} (Attempt ${event.retryCount}). Waiting 30s...`,
+          );
           event.status = EventStatus.PENDING;
           await event.save();
 
           channel.sendToQueue(
-            'events_retry_30s',
+            this.RETRY_QUEUE,
             Buffer.from(JSON.stringify({ eventId: event._id })),
+            { persistent: true },
           );
-          
+
           channel.ack(msg);
         }
-
-        await event.save();
-
-        // if (event.retryCount < 5) {
-        //   channel.nack(msg, false, true); // retry
-        // } else {
-        //   channel.ack(msg); // drop / DLQ
-        // }
       }
     });
   }
