@@ -6,6 +6,7 @@ import { RetryModule } from './retry/retry.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { WorkerModule } from './worker/webhook.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     WebhooksModule,
     EventsModule,
     RetryModule,
+    WorkerModule,
   ],
   controllers: [],
   providers: [],
