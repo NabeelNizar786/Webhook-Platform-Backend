@@ -19,6 +19,7 @@ export class WebhookWorker implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    this.logger.log('Initializing Webhook Worker Module...');
     this.start();
   }
 
